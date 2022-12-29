@@ -1,0 +1,142 @@
+on:
+  workflow_call:
+    inputs:
+      ENVIRONMENT:
+        required: true
+        type: string
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC:
+        required: true
+      CONTEXT_JWT_KEY_FILE:
+        required: true
+      CONTEXT_DECRYPTION_KEY:
+        required: true
+      CONTEXT_DECRYPTION_IV:
+        required: true
+      CONTEXT_HUB_CONSUMER_KEY:
+        required: true
+      CONTEXT_HUB_SFDX_USER:
+        required: true
+      CONTEXT_INSTANCE_URL:
+        required: true
+
+jobs:
+      
+  deploy-to-org:
+    #runs-on: ubuntu-latest
+    #name: "Run SFDX Validate"
+    runs-on: ubuntu-latest
+    #container:
+      #image: salesforce/salesforcedx:latest-full
+    environment: ${{ inputs.ENVIRONMENT }}
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    env:
+      DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.xz
+      TESTLEVEL: RunSpecifiedTests
+      TESTCLASSLIST: AccountTriggerHandlerTest,AnnounceCGLLightningCControllerTest,ApplicationTriggerHandlerTest,CampaignBudgetTest,CaseMetadataResourceTest,CaseCommentTriggerTest,CaseSelectorTest,CaseTriggerTest,CGLAddContributionCtrlTest,CGLGroupMembershipUpdateTest,CommunityContentTriggerHandlerTest,CommunityGroupsPageControllerTest,CommunityUserServiceTest,ContactSupportControllerTest,ContentDocumentLinksTriggerTest,ContentAssetTriggerTest,ContentDocumentTriggerTest,ContentLibraryRequestAccessTest,ContentShareEmailInviteControllerTest,CreateContactControllerTest,ContentShareTriggerHandlerTest,ContibutionActionControllerTest,CurrencyMaintainSchdTest,CustomLoginDiscHandlerTest,DesignationTriggerHandlerTest,dlrs_Content_AssetTest,dlrs_Library_StatTest,EmailMessageTriggerTest,ExpenseLineItemTriggerTest,ExpenseReportApprovalTest,ExpenseReportTriggerHandlerTest,FeedbackCtlrTest,FeedbackMergeRequestHandlerTest,FieldSetCtrlTest,ForwardProcessingTest,GenerateInvoiceTest,GeocodingTest,GetCampaignDetailsTest,GetContactDetailsTest,GoogleUtilityTest,GroupDetailPageControllerTest,GSManageGSuiteAccountControllerTest,JWTHelperTest,KBAndSupportControllerTest,KBArticleDisplayControllerTest,KBCategoriesControllerTest,KBSearchControllerTest,KBSearchResultControllerTest,KBVoteControllerTest,KnowledgeArticleStatsTest,KnowledgeTriggerHandlerTest,LookupfieldControllerTest,ManualAccountSharingTest,MVPGitHubAPIMockHttpResponse,MVPNominationControllerTest,MVPPageGitHubAPICallerTest,MvpUserProfileLinkControllerTest,NearbyExistingGroupCheckBatchTest,NewExpenseLineItemCtrlTest,NewExpenseReportCtrlTest,NominationCtlrTest,NominationTriggerHandlerTest,OnboardingRegHandlerTest,OrgMergeUtilTest,PopularArticlesControllerTest,PopularCategoriesControllerTest,ProgramNominationTriggerHandlerTest,ReimbursementStatusControllerTest,RelatedArticlesControllerTest,RelatedGuidesControllerTest,RuleConditionsTest,SearchControllerTest,SetupCurrencyCtrlTest,StatsControllerTest,SubmitNewContentControllerTest,SyncContactActiveDesignationsBatchTest,SyncMVPPageDataToGitTest,TBCApplicationQualificationsTest,TBCContentLibraryControllerTest,TBCMVPOnboardingControllerTest,TBCOnboardingControllerTest,TBCOnboardingStartControllerTest,TBCSubmitContentForApprovalTest,TbidEventConverterUpdateTest,TBIDRegistrationHandlerForCLTest,TBIDRegistrationHandlerTest,TrailblazerDataChangeTriggerHandlerTest,UserDataChangeTriggerHandlerWSTest
+      selective: yesPlease
+      releaseName: 2020.10.28
+      #CIRCLE_COMPARE_URL: << pipeline.project.git_url >>/compare/<< pipeline.git.base_revision >>..<<pipeline.git.revision>>
+      GITHUB_ACTION_PIPELINE_GIT_REVISION: ${{ github.sha }}
+      GITHUB_ACTION_PIPELINE_GIT_BASE_REVISION: ${{ github.event.pull_request.head.sha }}
+    steps:
+        # Install Salesforce CLI
+        - name: Setup Node JS
+          uses: actions/setup-node@v3.5.1
+          with:
+            node-version: '16'
+        - name: 'Install Salesforce CLI'
+          run: |
+              echo "Installing the SFDX"
+              wget ${{ env.DX_CLI_URL }}
+              mkdir ~/sfdx
+              tar xJf sfdx-linux-x64.tar.xz -C ~/sfdx --strip-components 1
+              echo "$HOME/sfdx/bin" >> $GITHUB_PATH
+              ~/sfdx/bin/sfdx version
+
+        # Checkout the source code
+        - name: 'Checkout source code'
+          uses: actions/checkout@v3
+          with:
+            fetch-depth: 0
+
+        - name: Set HEAD in GitHub Repo
+          run: |
+            #Use a Git pull command to set HEAD correctly in Repo. For build.xml to work properly 
+            #below git pull command actually is git pull origin BRANCH NAME from where build is to happen i.e. master/develop/feature etc.
+            git config user.email "amit.singh1@salesforce.com"
+            git config user.name "amitsinghsfdc"
+            #git pull origin develop
+            git pull origin $GITHUB_REF
+        - name: Give permission for changeCaseVerifier Script to run
+          run: |
+           #
+           chmod +x change-case-validator/changeCaseVerifier.sh
+
+        - name: Change Case Validation
+          run: |
+           # Call "changeCaseVerifier.sh bash script.
+           # It in turn calls change-case-validator Ant script to check for presence of specified Change Case Number
+           #change-case-validator/changeCaseVerifier.sh $CIRCLE_BRANCH $CHANGE_CASE_GUS_USERNAME $CHANGE_CASE_GUS_USER_PWD
+           #26582212
+           # ant -Dlib.dir=lib -Dsrc.dir=src -Dclasses.dir=classes -Dreport.dir=report -Dchange_case=$CHANGE_CASE_NUMBER -Dgus_username=$CHANGE_CASE_GUS_USERNAME -Dgus_pwd=$CHANGE_CASE_GUS_USER_PWD -DcheckOnly=false  -buildfile change-case-validator/build.xml 
+
+        - name: Get Changes For Deploy
+          run: |
+            #Using Ant script copy only changed files(and related metadata files) to a deployment source directory 
+            #ant -lib lib/ -buildfile build.xml
+            #ant -lib lib/ -Dtrailblazercommunity_salesforce_com=$trailblazercommunity_salesforce_com -Dno_reply_trailblazercgl_com=$no_reply_trailblazercgl_com -Dautomated_process_user_id=$automated_process_user_id -Dtrailblazer_identity_user_id=$trailblazer_identity_user_id -Dcgl_group_password=$cgl_group_password -Dtbc_base_url=$tbc_base_url -Dcl_community_url=$cl_community_url -Dcl_help_article_link=$cl_help_article_link -Dadmin_trailblazercommunity_com_user=$admin_trailblazercommunity_com_user -DContribution_Approval_User=$Contribution_Approval_User -Ddocusign_form_cgl=$docusign_form_cgl -Ddocusign_form_govt=$docusign_form_govt -Dget_feedback_form=$get_feedback_form -Dcustom_label_org_url=$custom_label_org_url -Dexpense_portal_help_quick_action=$expense_portal_help_quick_action -Dmvp_nomination_url=$mvp_nomination_url -Dtbid_csp_trusted_site=$tbid_csp_trusted_site -Denvdataroot=$envdataroot -Dtrailhead_support_email=$trailhead_support_email -Dacademy_support_email=$academy_support_email -Dselective=$selective -DreleaseName=$releaseName -DCIRCLECI_PIPELINE_GIT_REVISION=${{ env.GITHUB_ACTION_PIPELINE_GIT_REVISION }} -DCIRCLECI_PIPELINE_GIT_BASE_REVISION=${{ env.GITHUB_ACTION_PIPELINE_GIT_BASE_REVISION }} deploymentWithCircleci -buildfile build.xml
+
+        - name: Decrypt server key
+          #working-directory: ./.github
+          run: |
+            #ls -al
+            #Decrypt server key
+            #openssl enc -nosalt -aes-256-cbc -d -in assets/DRMCouncilOrg.key.enc -out assets/DRMCouncilOrg.key -base64 -K ${{ secrets.CONTEXT_DECRYPTION_KEY }} -iv ${{ secrets.CONTEXT_DECRYPTION_IV }}
+            openssl enc -nosalt -aes-256-cbc -d -in ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }} -out ${{ secrets.CONTEXT_JWT_KEY_FILE }} -base64 -K ${{ secrets.CONTEXT_DECRYPTION_KEY }} -iv ${{ secrets.CONTEXT_DECRYPTION_IV }} 
+
+        - name: Authorize Target Deployment Org
+          run: |
+            #Authorize target Deployment org
+            #sfdx auth:jwt:grant -i ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }} -f assets/DRMCouncilOrg.key -u amit.singh1@drm.org.drmcouncil -r https://test.salesforce.com -d -a hub
+            sfdx auth:jwt:grant -i ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }} -f ${{ secrets.CONTEXT_JWT_KEY_FILE }} -u ${{ secrets.CONTEXT_HUB_SFDX_USER }} -r ${{ secrets.CONTEXT_INSTANCE_URL }} -d -a hub
+
+        - name: Generate Delta & convert the files in deploy-sf-metadata folder to MDAPI format
+          run: |
+            sfdx update
+            mkdir delta
+            
+            echo 'y' | sfdx plugins:install sfdx-git-delta
+            
+            #sfdx sgd:source:delta --to "HEAD" --from ${{ github.event.pull_request.head.sha }} --output ./delta --generate-delta --api-version 55 --ignore-whitespace
+            sfdx sgd:source:delta --to "HEAD" --from "HEAD^" --output ./delta --generate-delta --api-version 55 -i .sgdignore
+            #sfdx sgd:source:delta --to "HEAD" --from "HEAD^" --output ./delta --generate-delta --api-version 55 --source force-app
+            
+            echo "--- package.xml generated with added and modified metadata ---"
+            cat delta/package/package.xml
+            
+            sfdx force:source:convert --manifest=delta/package/package.xml --outputdir=deploy-sf-metadata
+
+        - name: Download the SFDX Scanner Plug-in
+          run: |
+            echo 'y' |sfdx plugins:install @salesforce/sfdx-scanner
+
+        - name: Run SFDX CLI on deploy-sf-metadata and generate report in scan-reports folder
+          run: |
+            # delete if the folder is already there
+            if [ -d "scan-reports" ]; then rm -Rf scan-reports; fi
+            
+            # create the new folder so that new reports can be generated
+            mkdir scan-reports
+            sfdx scanner:run --format html --target force-app --category "Design,Best Practices,Security,Code Style,Error Prone,Performance" -e "cpd,pmd,eslint,retire-js" -o scan-reports/results.html
+        
+        - name: Upload SFDX CLI Scan results
+          uses: actions/upload-artifact@v3
+          with:
+            name: sfdx-scan-report
+            path: scan-reports/results.html
+            
+        - name: MDAPI Deploy to Target Deployment Org
+          run: |
+            #Deploy to target deployment org and run unit tests. 
+            sfdx force:mdapi:deploy --checkonly --wait 40 -d deploy-sf-metadata --targetusername ${{ secrets.CONTEXT_HUB_SFDX_USER }} --testlevel ${{ env.TESTLEVEL }} -r ${{ env.TESTCLASSLIST }}
