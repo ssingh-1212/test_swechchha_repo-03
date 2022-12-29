@@ -1,0 +1,88 @@
+name: Pipeline
+run-name: ${{ github.actor }} is running github on ${{ github.branch }}
+on:
+  push: # Add all the branches you want to execute the build verification once the code base is pushed into Repo
+    branches:
+      - 'feature/*'
+  
+  pull_request:
+    # paths:
+    #  - 'force-app/*'
+    types: [closed] #Closed is used so that Pipeline only runs only PR is merged
+    branches: # Change the name of the branches that are used in your project
+      - 'master'
+      - 'release/QA'
+      - 'release/staging'
+      - 'developer'
+
+jobs:
+    
+  production-build:
+    uses: ./.github/workflows/configuration.yml
+    if: ${{ github.actor != 'dependabot[bot]' && github.ref_name == 'master' && github.event_name == 'pull_request' }} # && github.ref_name == 'master'
+    with:
+      ENVIRONMENT: drm-production-context-variable #Please change it with the Correct Environment Name associated with Salesforce Environment
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC: ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }}
+      CONTEXT_JWT_KEY_FILE: ${{ secrets.CONTEXT_JWT_KEY_FILE }}
+      CONTEXT_DECRYPTION_KEY: ${{ secrets.CONTEXT_DECRYPTION_KEY }}
+      CONTEXT_DECRYPTION_IV: ${{ secrets.CONTEXT_DECRYPTION_IV }}
+      CONTEXT_HUB_CONSUMER_KEY: ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }}
+      CONTEXT_HUB_SFDX_USER: ${{ secrets.CONTEXT_HUB_SFDX_USER }}
+      CONTEXT_INSTANCE_URL: ${{ secrets.CONTEXT_INSTANCE_URL }}
+      
+  developer-build:
+    uses: ./.github/workflows/configuration.yml
+    if: ${{ github.actor != 'dependabot[bot]' && github.ref_name == 'developer' && github.event_name == 'pull_request'}}
+    with:
+      ENVIRONMENT: drm-developer-context-variable #Please change it with the Correct Environment Name associated with Salesforce Environment
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC: ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }}
+      CONTEXT_JWT_KEY_FILE: ${{ secrets.CONTEXT_JWT_KEY_FILE }}
+      CONTEXT_DECRYPTION_KEY: ${{ secrets.CONTEXT_DECRYPTION_KEY }}
+      CONTEXT_DECRYPTION_IV: ${{ secrets.CONTEXT_DECRYPTION_IV }}
+      CONTEXT_HUB_CONSUMER_KEY: ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }}
+      CONTEXT_HUB_SFDX_USER: ${{ secrets.CONTEXT_HUB_SFDX_USER }}
+      CONTEXT_INSTANCE_URL: ${{ secrets.CONTEXT_INSTANCE_URL }}
+  
+  release-qa-build:
+    uses: ./.github/workflows/configuration.yml
+    if: ${{ github.actor != 'dependabot[bot]' && github.ref_name == 'qa' && github.event_name == 'pull_request' }}
+    with:
+      ENVIRONMENT: drm-qa-context-variable #Please change it with the Correct Environment Name associated with Salesforce Environment
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC: ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }}
+      CONTEXT_JWT_KEY_FILE: ${{ secrets.CONTEXT_JWT_KEY_FILE }}
+      CONTEXT_DECRYPTION_KEY: ${{ secrets.CONTEXT_DECRYPTION_KEY }}
+      CONTEXT_DECRYPTION_IV: ${{ secrets.CONTEXT_DECRYPTION_IV }}
+      CONTEXT_HUB_CONSUMER_KEY: ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }}
+      CONTEXT_HUB_SFDX_USER: ${{ secrets.CONTEXT_HUB_SFDX_USER }}
+      CONTEXT_INSTANCE_URL: ${{ secrets.CONTEXT_INSTANCE_URL }}
+
+  release-staging-build:
+    uses: ./.github/workflows/configuration.yml
+    if: ${{ github.actor != 'dependabot[bot]' && github.ref_name == 'staging' && github.event_name == 'pull_request' }}
+    with:
+      ENVIRONMENT: drm-staging-context-variable #Please change it with the Correct Environment Name associated with Salesforce Environment
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC: ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }}
+      CONTEXT_JWT_KEY_FILE: ${{ secrets.CONTEXT_JWT_KEY_FILE }}
+      CONTEXT_DECRYPTION_KEY: ${{ secrets.CONTEXT_DECRYPTION_KEY }}
+      CONTEXT_DECRYPTION_IV: ${{ secrets.CONTEXT_DECRYPTION_IV }}
+      CONTEXT_HUB_CONSUMER_KEY: ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }}
+      CONTEXT_HUB_SFDX_USER: ${{ secrets.CONTEXT_HUB_SFDX_USER }}
+      CONTEXT_INSTANCE_URL: ${{ secrets.CONTEXT_INSTANCE_URL }}
+
+  feature-build:
+    uses: ./.github/workflows/configuration.yml
+    if: ${{ github.actor != 'dependabot[bot]' && github.event_name == 'push'}}
+    with:
+      ENVIRONMENT: drm-build-context-variable #Please change it with the Correct Environment Name associated with Salesforce Environment
+    secrets:
+      CONTEXT_JWT_KEY_FILE_ENC: ${{ secrets.CONTEXT_JWT_KEY_FILE_ENC }}
+      CONTEXT_JWT_KEY_FILE: ${{ secrets.CONTEXT_JWT_KEY_FILE }}
+      CONTEXT_DECRYPTION_KEY: ${{ secrets.CONTEXT_DECRYPTION_KEY }}
+      CONTEXT_DECRYPTION_IV: ${{ secrets.CONTEXT_DECRYPTION_IV }}
+      CONTEXT_HUB_CONSUMER_KEY: ${{ secrets.CONTEXT_HUB_CONSUMER_KEY }}
+      CONTEXT_HUB_SFDX_USER: ${{ secrets.CONTEXT_HUB_SFDX_USER }}
+      CONTEXT_INSTANCE_URL: ${{ secrets.CONTEXT_INSTANCE_URL }}
